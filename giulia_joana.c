@@ -9,28 +9,41 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <limits.h>
 
 #define MAX_VEICULOS 5
 #define NUM_PILHAS 3
 
+/* Armazena informacoes de um veiculo estacionado em uma pilha */
 typedef struct cel {
     char placa[9];
     struct cel *prox;
 } veiculo;
 
+/* Armazena informacoes de uma pilha */
 typedef struct {
     int veiculos; /* Quantidade de veiculos estacionados */
     veiculo *topo; /* Topo da pilha */
 } pilha;
 
+/* Armazena informacoes do estacionamento */
 typedef struct {
     char data[11];
     pilha P[NUM_PILHAS]; /* Armazena as pilhas P0, P1, ..., NUM_PILHAS-1 */
 } estacionamento;
 
-// funções base pilha
-int empilha(pilha *p, const char *placa) {
+/* Armazena informacoes de inicio e fim da fila auxiliar */
+typedef struct {
+    veiculo *inicio;
+    veiculo *fim;
+} fila;
+
+/*  funcoes auxiliares pilha */
+void inicializaPilha(pilha *p) {
+    p->veiculos = 0;
+    p->topo = NULL;
+}
+
+int empilha(pilha *p, char *placa) {
     if (p->veiculos >= MAX_VEICULOS) {
         return 0;
     }
@@ -43,34 +56,74 @@ int empilha(pilha *p, const char *placa) {
 }
 
 char *desempilha(pilha *p) {
-    if (p->topo == NULL) {
+    if (p->veiculos == 0) {
         return NULL;
     }
     veiculo *removido = p->topo;
-    char *placa = (char *)malloc(9);
-    strcpy(placa, removido->placa);
     p->topo = removido->prox;
     p->veiculos--;
+    char *placa = (char *)malloc(9 * sizeof(char));
+    strcpy(placa, removido->placa);
     free(removido);
     return placa;
 }
 
-void imprimirPilha(pilha *p, int indice) {
+void imprimirPilha(pilha *p, int indice)
+{
     printf("P%d:", indice);
     veiculo *atual = p->topo;
-    int ultimo = 1;
-
-    while (atual != NULL) {
-        if (!ultimo) {
-            printf(",");
+    if (atual != NULL) {
+        while (atual != NULL) {
+            printf("%s", atual->placa);
+            if (atual->prox != NULL) {
+                printf(",");
+            }
+            atual = atual->prox;
         }
-        printf("%s", atual->placa);
-        atual = atual->prox;
-        ultimo = 0;
     }
     printf("\n");
 }
 
+/*  funcoes auxiliares fila */
+
+void inicializaFila(fila *f) {
+    f->inicio = f->fim = NULL;
+}
+
+void enfileira(fila *f, char *placa) {
+    veiculo *novo = (veiculo *)malloc(sizeof(veiculo));
+    strcpy(novo->placa, placa);
+    novo->prox = NULL;
+
+    if (f->fim != NULL) {
+        f->fim->prox = novo;
+    }
+    f->fim = novo;
+
+    if (f->inicio == NULL) {
+        f->inicio = novo;
+    }
+}
+
+char *desenfileira(fila *f) {
+    if (f->inicio == NULL) {
+        return NULL;
+    }
+
+    veiculo *removido = f->inicio;
+    char *placa = (char *)malloc(9 * sizeof(char));
+    strcpy(placa, removido->placa);
+
+    f->inicio = removido->prox;
+    if (f->inicio == NULL) {
+        f->fim = NULL;
+    }
+
+    free(removido);
+    return placa;
+}
+
+/*  funcoes estacionamento */
 
 void limpaPilhas(pilha *p) {
     veiculo *atual = p->topo;
@@ -83,13 +136,9 @@ void limpaPilhas(pilha *p) {
     p->veiculos = 0;
 }
 
-void inicializaPilha(pilha *p) {
-    p->veiculos = 0;
-    p->topo = NULL;
-}
-
 void inicializaEstacionamento(estacionamento *est) {
-    for (int i = 0; i < NUM_PILHAS; i++) {
+    for (int i = 0; i < NUM_PILHAS; i++)
+    {
         inicializaPilha(&est->P[i]);
     }
 }
@@ -117,8 +166,7 @@ void gerenciar_estacionamento() {
 
         char operacao;
         int finalizar_dia = 0;
-
-        while (finalizar_dia != 1) {
+        while (!finalizar_dia) {
             scanf(" %c", &operacao);
 
             if (operacao == 'F') { // Finaliza o dia
@@ -127,7 +175,7 @@ void gerenciar_estacionamento() {
                     limpaPilhas(&est.P[i]);
                 }
                 finalizar_dia = 1;
-            } else if (operacao == 'E') { // Entrada de veículo
+            } else if (operacao == 'E') { // Entrada de veiculo
                 char placa[9];
                 scanf("%s", placa);
                 int indice = menorPilha(&est);
@@ -136,37 +184,49 @@ void gerenciar_estacionamento() {
                 } else {
                     printf("C %s\n", placa);
                 }
-            } else if (operacao == 'S') { // Saída de veículo
+            } else if (operacao == 'S') { // Saida de veiculo
                 char placa[9];
                 scanf("%s", placa);
                 int encontrado = 0;
 
-                for (int i = 0; i < NUM_PILHAS; i++) {
-                    pilha auxiliar = {0, NULL};
+                for (int i = 0; i < NUM_PILHAS; i++)
+                {
+                    fila auxiliar;
+                    inicializaFila(&auxiliar);
 
-                    while (est.P[i].topo != NULL && !encontrado) {
+                    while (est.P[i].topo != NULL)
+                    {
                         char *atual = desempilha(&est.P[i]);
-                        if (strcmp(atual, placa) == 0) {
+                        if (strcmp(atual, placa) == 0)
+                        {
                             printf("S %s\n", atual);
                             encontrado = 1;
                             free(atual);
-                        } else {
-                            empilha(&auxiliar, atual);
+                            break;
+                        }
+                        else
+                        {
+                            enfileira(&auxiliar, atual);
                             free(atual);
                         }
                     }
 
-                    while (auxiliar.topo != NULL) {
-                        char *atual = desempilha(&auxiliar);
+                    while (auxiliar.inicio != NULL)
+                    {
+                        char *atual = desenfileira(&auxiliar);
                         empilha(&est.P[i], atual);
                         free(atual);
                     }
+
                 }
 
-                if (!encontrado) {
+                if (!encontrado)
+                {
                     printf("N %s\n", placa);
                 }
-            } else if (operacao == 'I') { // Imprime pilha
+            }
+            else if (operacao == 'I')
+            {
                 char pilha_indice[3];
                 scanf("%s", pilha_indice);
                 int i = pilha_indice[1] - '0';
@@ -176,7 +236,8 @@ void gerenciar_estacionamento() {
     }
 }
 
-int main() {
+int main()
+{
     gerenciar_estacionamento();
     return 0;
 }
