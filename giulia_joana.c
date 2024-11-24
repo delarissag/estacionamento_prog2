@@ -1,3 +1,11 @@
+/**************************************************
+*
+* Giulia Delarissa e Joana Maria Cunha Costa
+* Trabalho 2
+* Professor(a): Diego Rupert
+*
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
