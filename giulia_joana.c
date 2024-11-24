@@ -1,54 +1,125 @@
-/**************************************************
-*
-* Giulia Delarissa e Joana Maria Cunha Costa
-* Trabalho 2
-* Professor(a): Diego Rupert
-*
-*/
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <limits.h>
 
 #define MAX_VEICULOS 5
 #define NUM_PILHAS 3
 
-
-/* Armazena informacoes de um veiculo estacionado em uma pilha */
-typedef struct cel
-{
+typedef struct cel {
     char placa[9];
     struct cel *prox;
 } veiculo;
 
-/* Armazena informacoes de uma pilha */
-typedef struct
-{
-    int veiculos; /* Quantidade de veiculos estacionados */
-    veiculo *topo; /* Topo da pilha */
+typedef struct {
+    int veiculos;
+    veiculo *topo;
 } pilha;
 
-/* Armazena informacoes do estacionamento */
-typedef struct
-{
+typedef struct {
+    veiculo *inicio;
+    veiculo *fim;
+} fila;
+
+typedef struct {
     char data[11];
-    pilha P[NUM_PILHAS]; /* Armazena as pilhas P0, P1, ..., NUM_PILHAS-1 */
+    pilha P[NUM_PILHAS];
 } estacionamento;
 
-// funções base pilha
-
-//criar empilha, desempilha, imprimePilha e limpaPilhas
-//empilha
-//desempilha
-//imprimePilha
-//limpaPilhas
+// funcoes auxiliares pilha
 void inicializaPilha(pilha *p) {
     p->veiculos = 0;
     p->topo = NULL;
 }
 
-// controle do estacionamento
+int empilha(pilha *p, char *placa) {
+    if (p->veiculos >= MAX_VEICULOS) {
+        return 0;
+    }
+    veiculo *novo = (veiculo *)malloc(sizeof(veiculo));
+    strcpy(novo->placa, placa);
+    novo->prox = p->topo;
+    p->topo = novo;
+    p->veiculos++;
+    return 1;
+}
+
+char *desempilha(pilha *p) {
+    if (p->veiculos == 0) {
+        return NULL;
+    }
+    veiculo *removido = p->topo;
+    p->topo = removido->prox;
+    p->veiculos--;
+    char *placa = (char *)malloc(9 * sizeof(char));
+    strcpy(placa, removido->placa);
+    free(removido);
+    return placa;
+}
+
+void imprimirPilha(pilha *p, int indice) {
+    printf("P%d:", indice);
+    veiculo *atual = p->topo;
+    if (atual != NULL) {
+        while (atual != NULL) {
+            printf("%s", atual->placa);
+            if (atual->prox != NULL) {
+                printf(",");
+            }
+            atual = atual->prox;
+        }
+    }
+    printf("\n");
+}
+
+// funcoes auxiliares fila
+
+void inicializaFila(fila *f) {
+    f->inicio = f->fim = NULL;
+}
+
+void enfileira(fila *f, char *placa) {
+    veiculo *novo = (veiculo *)malloc(sizeof(veiculo));
+    strcpy(novo->placa, placa);
+    novo->prox = NULL;
+
+    if (f->fim != NULL) {
+        f->fim->prox = novo;
+    }
+    f->fim = novo;
+
+    if (f->inicio == NULL) {
+        f->inicio = novo;
+    }
+}
+
+char *desenfileira(fila *f) {
+    if (f->inicio == NULL) {
+        return NULL;
+    }
+
+    veiculo *removido = f->inicio;
+    char *placa = (char *)malloc(9 * sizeof(char));
+    strcpy(placa, removido->placa);
+
+    f->inicio = removido->prox;
+    if (f->inicio == NULL) {
+        f->fim = NULL;
+    }
+
+    free(removido);
+    return placa;
+}
+
+// funcoes estacionamento
+
+void limpaPilhas(estacionamento *est) {
+    for (int i = 0; i < NUM_PILHAS; i++) {
+        while (est->P[i].topo != NULL) {
+            char *placa = desempilha(&est->P[i]);
+            free(placa);
+        }
+    }
+}
 
 void inicializaEstacionamento(estacionamento *est) {
     for (int i = 0; i < NUM_PILHAS; i++) {
@@ -59,7 +130,7 @@ void inicializaEstacionamento(estacionamento *est) {
 int menorPilha(estacionamento *est) {
     int i = 0;
     for (int j = 1; j < NUM_PILHAS; j++) {
-        if (est->P[i].veiculos < est->P[i].veiculos) {
+        if (est->P[j].veiculos < est->P[i].veiculos) {
             i = j;
         }
     }
@@ -72,7 +143,7 @@ void gerenciar_estacionamento() {
 
     for (int i = 0; i < c; i++) {
         estacionamento est;
-        inicializar_pilhas(&est);
+        inicializaEstacionamento(&est);
 
         scanf("%s", est.data);
         printf("%s\n", est.data);
@@ -82,41 +153,43 @@ void gerenciar_estacionamento() {
         while (1) {
             scanf(" %c", &operacao);
 
-            if (operacao == 'F') { // Finaliza o dia
+            if (operacao == 'F') {
                 printf("F\n\n");
-                // criar uma funcao que apaga o conteudo das pilhas e add aqui
-            } else if (operacao == 'E') { // Entrada de veículo
+                limpaPilhas(&est);
+                break;
+            } else if (operacao == 'E') {
                 char placa[9];
                 scanf("%s", placa);
                 int indice = menorPilha(&est);
                 if (empilha(&est.P[indice], placa)) {
-                    printf("E %s\n", placa); // Sucesso
+                    printf("E %s\n", placa);
                 } else {
-                    printf("C %s\n", placa); // Estacionamento cheio
+                    printf("C %s\n", placa);
                 }
-            } else if (operacao == 'S') { // Saída de veículo
+            } else if (operacao == 'S') {
                 char placa[9];
                 scanf("%s", placa);
                 int encontrado = 0;
 
                 for (int i = 0; i < NUM_PILHAS; i++) {
-                    pilha auxiliar = {0, NULL};
+                    fila auxiliar;
+                    inicializaFila(&auxiliar);
 
                     while (est.P[i].topo != NULL) {
                         char *atual = desempilha(&est.P[i]);
                         if (strcmp(atual, placa) == 0) {
-                            printf("S %s\n", atual); // Veículo removido
+                            printf("S %s\n", atual);
                             encontrado = 1;
                             free(atual);
                             break;
                         } else {
-                            empilha(&auxiliar, atual);
+                            enfileira(&auxiliar, atual);
                             free(atual);
                         }
                     }
 
-                    while (auxiliar.topo != NULL) {
-                        char *atual = desempilha(&auxiliar);
+                    while (auxiliar.inicio != NULL) {
+                        char *atual = desenfileira(&auxiliar);
                         empilha(&est.P[i], atual);
                         free(atual);
                     }
@@ -125,18 +198,18 @@ void gerenciar_estacionamento() {
                 }
 
                 if (!encontrado) {
-                    printf("N %s\n", placa); // Veículo não encontrado
+                    printf("N %s\n", placa);
                 }
             } else if (operacao == 'I') {
                 int i;
-                scanf("%d", &i);
-                imprimirPilha(&est.P[i], i); // Impressão de pilha
+                scanf("P%d", &i);
+                imprimirPilha(&est.P[i], i);
             }
         }
     }
 }
 
-int main()
-{
+int main() {
     gerenciar_estacionamento();
+    return 0;
 }
